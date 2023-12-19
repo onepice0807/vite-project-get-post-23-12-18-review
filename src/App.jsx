@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+
 import MoviesList from "./components/MoviesList";
+import AddMovie from "./components/AddMovie";
 import "./App.css";
 
 function App() {
@@ -7,30 +9,54 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  async function fetchMoviesHandler() {
+  const fetchMoviesHandler = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch("https://swapi.dev/api/films/");
+      const response = await fetch(
+        "https://react-http-f591e-default-rtdb.firebaseio.com/movies.json"
+      );
       if (!response.ok) {
         throw new Error("문제가 발생했습니다!");
       }
-      const data = await response.json();
 
-      const transformedMovies = data.results.map((movieDate) => {
-        return {
-          id: movieDate.episode_id,
-          title: movieDate.title,
-          openingText: movieDate.opening_crawl,
-          releaseDate: movieDate.release_date,
-        };
-      });
-      setMovies(transformedMovies);
+      const data = await response.json();
+      const loadedMovies = [];
+
+      for (const key in data) {
+        loadedMovies.push({
+          id: key,
+          title: data[key].title,
+          openingText: data[key].openingText,
+          releaseDate: data[key].releaseDate,
+        });
+      }
+      setMovies(loadedMovies);
     } catch (error) {
       setError(error.message);
     }
     setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchMoviesHandler();
+  }, [fetchMoviesHandler]);
+
+  async function addMovieHandler(movie) {
+    const response = await fetch(
+      "https://react-http-f591e-default-rtdb.firebaseio.com/movies.json",
+      {
+        method: "POST",
+        body: JSON.stringify(movie),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    const data = await response.json();
+    console.log(data);
   }
+
   let content = <p>영화를 찾을수 없습니다</p>;
 
   if (movies.length > 0) {
@@ -42,12 +68,16 @@ function App() {
   }
 
   if (isLoading) {
-    content = <p>로딩중...!</p>;
+    content = <p>Loading...</p>;
   }
+
   return (
     <React.Fragment>
       <section>
-        <button onClick={fetchMoviesHandler}>Fetch Movies</button>
+        <AddMovie onAddMovie={addMovieHandler} />
+      </section>
+      <section>
+        <button onClick={fetchMoviesHandler}>영화 가져오기</button>
       </section>
       <section>{content}</section>
     </React.Fragment>
